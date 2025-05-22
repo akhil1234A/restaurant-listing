@@ -25,6 +25,12 @@ export class RestaurantRoutes {
       this.restaurantController.listAllRestaurants.bind(this.restaurantController)
     );
 
+    this.router.get(
+      '/:id',
+      this.authMiddleware.verifyToken.bind(this.authMiddleware),
+      this.restaurantController.getRestaurantById.bind(this.restaurantController)
+    );
+
     this.router.post(
       '/',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),

@@ -14,9 +14,9 @@ export class RestaurantController {
 
   /**
    * List all Restaurants
-   * @param req 
-   * @param res 
-   * @param next 
+   * @param req
+   * @param res
+   * @param next
    */
   async listAllRestaurants(req: CustomRequest, res: Response, next: NextFunction) {
     try {
@@ -45,10 +45,31 @@ export class RestaurantController {
   }
 
   /**
+   * Get a restaurant by ID
+   * @param req
+   * @param res
+   * @param next
+   */
+  async getRestaurantById(req: CustomRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { id: restaurantId } = req.params;
+      if (!userId) {
+        throw new CustomError(MESSAGES.ID_REQUIRED, STATUS_CODES.UNAUTHORIZED);
+      }
+
+      const restaurant = await this.restaurantService.getRestaurantById(restaurantId);
+      res.status(STATUS_CODES.OK).json({ restaurant });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * This method creates new restaurant
    * @param req id
    * @param res restaurant data
-   * @param next 
+   * @param next
    */
   async createNewRestaurant(req: CustomRequest, res: Response, next: NextFunction) {
     try {
@@ -86,9 +107,9 @@ export class RestaurantController {
 
   /**
    * This method update existing restaurant
-   * @param req 
-   * @param res 
-   * @param next 
+   * @param req
+   * @param res
+   * @param next
    */
   async updateExistingRestaurant(req: CustomRequest, res: Response, next: NextFunction) {
     try {
@@ -124,9 +145,9 @@ export class RestaurantController {
 
   /**
    * This method delete restaurant by id
-   * @param req 
-   * @param res 
-   * @param next 
+   * @param req
+   * @param res
+   * @param next
    */
   async deleteRestaurantById(req: CustomRequest, res: Response, next: NextFunction) {
     try {

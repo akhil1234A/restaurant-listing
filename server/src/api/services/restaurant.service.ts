@@ -22,6 +22,7 @@ export interface IRestaurantService {
     imageFiles?: Express.Multer.File[]
   ): Promise<IRestaurant>;
   deleteRestaurantById(restaurantId: string, userId: string): Promise<void>;
+  getRestaurantById(restaurantId: string): Promise<IRestaurant>;
 }
 
 @injectable()
@@ -182,5 +183,13 @@ export class RestaurantService implements IRestaurantService {
       throw new CustomError('Restaurant not found or unauthorized', 404);
     }
     await this.restaurantRepository.delete(restaurantId);
+  }
+
+  async getRestaurantById(restaurantId: string): Promise<IRestaurant> {
+    const restaurant = await this.restaurantRepository.findById(restaurantId);
+    if (!restaurant) {
+      throw new CustomError('Restaurant not found', 404);
+    }
+    return restaurant;
   }
 }
