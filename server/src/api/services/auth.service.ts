@@ -1,17 +1,24 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../di/types';
-import { UserRepository } from '../../domain/repositories/user.repository';
+import { IUserRepository } from '../../domain/repositories/user.repository';
 import { CustomError } from '../../core/errors/custom-error';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { AuthDto } from '../../core/dtos/auth.dto';
+import { IUser } from '../../domain/models/user.model';
+
+export interface IAuthService {
+  registerUser(credentials: AuthDto): Promise<{ accessToken: string; refreshToken: string; user: { id: string; email: string } }>;
+  loginUser(credentials: AuthDto): Promise<{ accessToken: string; refreshToken: string; user: { id: string; email: string } }>;
+  refreshAuthToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; user: { id: string; email: string } }>;
+}
 
 @injectable()
-export class AuthService {
-  constructor(@inject(TYPES.UserRepository) private userRepository: UserRepository) {}
+export class AuthService implements IAuthService {
+  constructor(@inject(TYPES.UserRepository) private userRepository: IUserRepository) {}
 
-  async register(dto: AuthDto) {
-    const { email, password } = dto;
+  async registerUser(credentials: AuthDto) {
+    const { email, password } = credentials;
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       throw new CustomError('User already exists', 400);
@@ -22,16 +29,13 @@ export class AuthService {
 
     const accessToken = this.generateAccessToken(user.id);
     const refreshToken = this.generateRefreshToken(user.id);
-    const userResponse = {
-      id: user.id,
-      email:user.email
-    }
+    const userResponse = { id: user.id, email: user.email };
 
     return { accessToken, refreshToken, user: userResponse };
   }
 
-  async login(dto: AuthDto) {
-    const { email, password } = dto;
+  async loginUser(credentials: AuthDto) {
+    const { email, password } = credentials;
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new CustomError('Invalid credentials', 401);
@@ -44,15 +48,12 @@ export class AuthService {
 
     const accessToken = this.generateAccessToken(user.id);
     const refreshToken = this.generateRefreshToken(user.id);
-    const userResponse = {
-      id: user.id,
-      email:user.email
-    }
+    const userResponse = { id: user.id, email: user.email };
 
     return { accessToken, refreshToken, user: userResponse };
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshAuthToken(refreshToken: string) {
     try {
       const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { id: string };
       const user = await this.userRepository.findById(payload.id);
@@ -62,10 +63,7 @@ export class AuthService {
 
       const accessToken = this.generateAccessToken(user.id);
       const newRefreshToken = this.generateRefreshToken(user.id);
-      const userResponse = {
-      id: user.id,
-      email:user.email
-    }
+      const userResponse = { id: user.id, email: user.email };
 
       return { accessToken, refreshToken: newRefreshToken, user: userResponse };
     } catch (error) {

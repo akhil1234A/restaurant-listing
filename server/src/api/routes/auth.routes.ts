@@ -13,8 +13,8 @@ export class AuthRoutes {
   }
 
   private configureRoutes() {
-    this.router.post('/register', this.authController.register.bind(this.authController));
-    this.router.post('/login', this.authController.login.bind(this.authController));
-    this.router.post('/refresh', this.authController.refresh.bind(this.authController));
+    this.router.post('/register', this.authController.registerUser.bind(this.authController));
+    this.router.post('/login', this.authController.loginUser.bind(this.authController));
+    this.router.post('/refresh', this.authController.refreshAuthToken.bind(this.authController));
   }
 }

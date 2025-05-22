@@ -15,34 +15,34 @@ export class RestaurantRoutes {
     @inject(TYPES.FileUploadMiddleware) private fileUploadMiddleware: FileUploadMiddleware
   ) {
     this.router = Router();
-    this.initializeRoutes();
+    this.configureRoutes();
   }
 
-  private initializeRoutes() {
+  private configureRoutes() {
     this.router.get(
       '/',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),
-      this.restaurantController.getAll.bind(this.restaurantController)
+      this.restaurantController.listAllRestaurants.bind(this.restaurantController)
     );
 
     this.router.post(
       '/',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),
       this.fileUploadMiddleware.upload.array('images', 10),
-      this.restaurantController.create.bind(this.restaurantController)
+      this.restaurantController.createNewRestaurant.bind(this.restaurantController)
     );
 
     this.router.put(
       '/:id',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),
       this.fileUploadMiddleware.upload.array('images', 10),
-      this.restaurantController.update.bind(this.restaurantController)
+      this.restaurantController.updateExistingRestaurant.bind(this.restaurantController)
     );
 
     this.router.delete(
       '/:id',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),
-      this.restaurantController.delete.bind(this.restaurantController)
+      this.restaurantController.deleteRestaurantById.bind(this.restaurantController)
     );
   }
 }
