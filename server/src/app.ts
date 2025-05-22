@@ -12,7 +12,9 @@ import { TYPES } from './di/types'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
+
 dotenv.config();
+
 export class App {
   private app: Application;
   private container: Container;

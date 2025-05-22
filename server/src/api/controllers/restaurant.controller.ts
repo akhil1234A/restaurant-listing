@@ -7,18 +7,18 @@ import { validate } from '../../core/dtos/validate';
 import { CustomError } from '../../core/errors/custom-error';
 import { CustomRequest } from '../../core/types/express';
 import { STATUS_CODES, MESSAGES } from '../../core/constants/constants';
-import { getQueryParams } from '@/core/utils/queryParams';
+import { z } from 'zod';
 
 export class RestaurantController {
   constructor(@inject(TYPES.RestaurantService) private restaurantService: IRestaurantService) {}
 
   /**
-   * 
-   * @param req userId
-   * @param res list of 
+   * List all Restaurants
+   * @param req 
+   * @param res 
    * @param next 
    */
-   async listAllRestaurants(req: CustomRequest, res: Response, next: NextFunction) {
+  async listAllRestaurants(req: CustomRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -29,7 +29,7 @@ export class RestaurantController {
       const limit = parseInt(req.query.limit as string) || 10;
       const searchTerm = req.query.search as string | undefined;
 
-      const { restaurants, total } = await this.restaurantService.fetchAllRestaurants(userId, page, limit, searchTerm);
+      const { restaurants, total } = await this.restaurantService.fetchAllRestaurantsPublic(page, limit, searchTerm);
       res.status(STATUS_CODES.OK).json({
         restaurants,
         pagination: {
@@ -44,16 +44,36 @@ export class RestaurantController {
     }
   }
 
-
+  /**
+   * This method creates new restaurant
+   * @param req id
+   * @param res restaurant data
+   * @param next 
+   */
   async createNewRestaurant(req: CustomRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new CustomError(MESSAGES.ID_REQUIRED, STATUS_CODES.UNAUTHORIZED);
       }
-      const restaurantData = validate<RestaurantDto>(req.body, RestaurantDto);
+
+      // Preprocess req.body for form-data
+      const restaurantDataRaw = {
+        ...req.body,
+        categories: typeof req.body.categories === 'string' ? req.body.categories : JSON.stringify(req.body.categories || []),
+        description: req.body.description || undefined,
+        website: req.body.website || undefined,
+        phoneNumber: req.body.phoneNumber,
+        openingTime: req.body.openingTime,
+        closingTime: req.body.closingTime,
+        offersDelivery: req.body.offersDelivery ?? 'false',
+        offersDineIn: req.body.offersDineIn ?? 'false',
+        offersPickup: req.body.offersPickup ?? 'false',
+      };
+
+      const restaurantData = validate<z.infer<typeof RestaurantDto>>(restaurantDataRaw, RestaurantDto);
       const imageFiles = req.files as Express.Multer.File[] | undefined;
-      if (!imageFiles) {
+      if (!imageFiles || imageFiles.length < 3) {
         throw new CustomError(MESSAGES.IMAGE_REQUIRED, STATUS_CODES.BAD_REQUEST);
       }
 
@@ -64,6 +84,12 @@ export class RestaurantController {
     }
   }
 
+  /**
+   * This method update existing restaurant
+   * @param req 
+   * @param res 
+   * @param next 
+   */
   async updateExistingRestaurant(req: CustomRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
@@ -71,7 +97,22 @@ export class RestaurantController {
       if (!userId) {
         throw new CustomError(MESSAGES.ID_REQUIRED, STATUS_CODES.UNAUTHORIZED);
       }
-      const restaurantData = validate<Partial<RestaurantDto>>(req.body, RestaurantDto.partial());
+
+      // Preprocess req.body for form-data
+      const restaurantDataRaw = {
+        ...req.body,
+        categories: typeof req.body.categories === 'string' ? req.body.categories : JSON.stringify(req.body.categories || []),
+        description: req.body.description || undefined,
+        website: req.body.website || undefined,
+        phoneNumber: req.body.phoneNumber || undefined,
+        openingTime: req.body.openingTime || undefined,
+        closingTime: req.body.closingTime || undefined,
+        offersDelivery: req.body.offersDelivery ?? undefined,
+        offersDineIn: req.body.offersDineIn ?? undefined,
+        offersPickup: req.body.offersPickup ?? undefined,
+      };
+
+      const restaurantData = validate<Partial<z.infer<typeof RestaurantDto>>>(restaurantDataRaw, RestaurantDto.partial());
       const imageFiles = req.files as Express.Multer.File[] | undefined;
 
       const restaurant = await this.restaurantService.updateExistingRestaurant(restaurantId, userId, restaurantData, imageFiles);
@@ -81,6 +122,12 @@ export class RestaurantController {
     }
   }
 
+  /**
+   * This method delete restaurant by id
+   * @param req 
+   * @param res 
+   * @param next 
+   */
   async deleteRestaurantById(req: CustomRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
