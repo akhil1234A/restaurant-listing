@@ -11,7 +11,7 @@ interface RestaurantCardProps {
 
 export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
   return (
-    <Link href={`/restaurant/${restaurant._id}`}>
+    <Link href={`/restaurant/${restaurant.id}`}>
       <Card className="overflow-hidden transition-all hover:shadow-md">
         <div className="relative h-48 w-full">
           <Image

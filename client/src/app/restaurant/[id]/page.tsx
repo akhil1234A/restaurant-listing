@@ -118,7 +118,7 @@ export default function RestaurantDetailPage() {
               {isOwner && (
                 <div className="flex space-x-2">
                   <Button variant="outline" size="icon" asChild>
-                    <Link href={`/edit-restaurant/${restaurant._id}`}>
+                    <Link href={`/edit-restaurant/${restaurant.id}`}>
                       <Pencil className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
                     </Link>

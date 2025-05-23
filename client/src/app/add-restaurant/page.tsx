@@ -1,98 +1,127 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import * as z from 'zod';
+import Select from 'react-select';
+import { createRestaurant } from '@/lib/api';
+import Image from 'next/image';
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { restaurantSchema, type RestaurantFormData } from "@/lib/types"
-import { createRestaurant } from "@/lib/api"
-import RestaurantLocationPicker from "@/components/restaurant-location-picker"
+// Define the schema
+export const restaurantSchema = z.object({
+  name: z.string().min(3, 'Name must be at least 3 characters'),
+  address: z.string().min(5, 'Address must be at least 5 characters'),
+  city: z.string().min(2, 'City must be at least 2 characters'),
+  pinCode: z.string().regex(/^\d{5,10}$/, 'Pin code must be 5-10 digits'),
+  categories: z.array(z.enum(['restaurant', 'cafe', 'hotel', 'vegetarian'])).min(1, 'At least one category required'),
+  description: z.string().optional(),
+  website: z.string().url('Invalid URL').optional(),
+  phoneNumber: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits'),
+  openingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Opening time must be HH:MM'),
+  closingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Closing time must be HH:MM'),
+  offersDelivery: z.boolean().default(false),
+  offersDineIn: z.boolean().default(false),
+  offersPickup: z.boolean().default(false),
+});
+
+type RestaurantFormData = z.infer<typeof restaurantSchema>;
+
+// Options for react-select
+const categoryOptions = [
+  { value: 'restaurant', label: 'Restaurant' },
+  { value: 'cafe', label: 'Cafe' },
+  { value: 'hotel', label: 'Hotel' },
+  { value: 'vegetarian', label: 'Vegetarian' },
+];
 
 export default function AddRestaurantPage() {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   const form = useForm<RestaurantFormData>({
     resolver: zodResolver(restaurantSchema),
     defaultValues: {
-      name: "",
-      address: "",
-      city: "",
-      pinCode: "",
-      categories: JSON.stringify(["Restaurant"]),
-      description: "",
-      website: "",
-      phoneNumber: "",
-      openingTime: "09:00",
-      closingTime: "22:00",
+      name: '',
+      address: '',
+      city: '',
+      pinCode: '',
+      categories: [],
+      description: '',
+      website: '',
+      phoneNumber: '',
+      openingTime: '09:00',
+      closingTime: '22:00',
       offersDelivery: false,
       offersDineIn: true,
       offersPickup: false,
     },
-  })
+  });
 
-  const onSubmit = async (data: RestaurantFormData) => {
-    if (!coordinates) {
-      toast.error("Please select a location on the map")
-      return
-    }
-
-    if (selectedImages.length < 3) {
-      toast.error("Please upload at least 3 images")
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const formData = new FormData()
-
-      // Add all text fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === "categories") {
-          // Categories is already a JSON string from the form
-          formData.append(key, value)
-        } else {
-          formData.append(key, String(value))
-        }
-      })
-
-      // Add coordinates
-      formData.append("latitude", String(coordinates.lat))
-      formData.append("longitude", String(coordinates.lng))
-
-      // Add images
-      selectedImages.forEach((image) => {
-        formData.append("images", image)
-      })
-
-      await createRestaurant(formData)
-      toast.success("Restaurant added successfully")
-      router.push("/")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add restaurant")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  // Cleanup image preview URLs
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const fileArray = Array.from(e.target.files)
-      setSelectedImages(fileArray)
+      const fileArray = Array.from(e.target.files);
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      const newPreviews = fileArray.map((file) => URL.createObjectURL(file));
+      setSelectedImages(fileArray);
+      setImagePreviews(newPreviews);
     }
-  }
+  };
+
+  const onSubmit = async (data: RestaurantFormData) => {
+    if (selectedImages.length < 3) {
+      toast.error('Please upload at least 3 images');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData();
+
+      // Add categories as JSON array
+      formData.append('categories', JSON.stringify(data.categories));
+
+      // Add other fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (key !== 'categories') {
+          formData.append(key, String(value));
+        }
+      });
+
+      // Add images
+      selectedImages.forEach((image) => {
+        formData.append('images', image);
+      });
+
+      await createRestaurant(formData);
+      toast.success('Restaurant added successfully');
+      router.push('/');
+    } catch (error: any) {
+      console.error('Error adding restaurant:', error);
+      toast.error(error.message || 'Failed to add restaurant');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="container py-8">
@@ -112,11 +141,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Restaurant Name</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Restaurant Name"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.trim())}
-                        />
+                        <Input placeholder="Restaurant Name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -129,9 +154,16 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Categories</FormLabel>
                       <FormControl>
-                        <Input placeholder='["Italian", "Pizza"]' {...field} />
+                        <Select
+                          isMulti
+                          options={categoryOptions}
+                          onChange={(selected) => field.onChange(selected.map((option) => option.value))}
+                          value={categoryOptions.filter((option) => field.value.includes(option.value))}
+                          placeholder="Select categories"
+                          classNamePrefix="react-select"
+                        />
                       </FormControl>
-                      <FormDescription>Enter as JSON array (e.g. ["Italian", "Pizza"])</FormDescription>
+                      <FormDescription>Select one or more categories</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -148,7 +180,7 @@ export default function AddRestaurantPage() {
                       <Textarea placeholder="Describe the restaurant" className="resize-none" {...field} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
+                    </FormItem>
                 )}
               />
 
@@ -160,11 +192,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="123 Main St"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.trim())}
-                        />
+                        <Input placeholder="123 Main St" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -177,11 +205,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="New York"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.trim())}
-                        />
+                        <Input placeholder="New York" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -197,7 +221,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Pin Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="10001" {...field} onChange={(e) => field.onChange(e.target.value.trim())} />
+                        <Input placeholder="10001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -210,11 +234,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="1234567890"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.trim())}
-                        />
+                        <Input placeholder="1234567890" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -229,11 +249,7 @@ export default function AddRestaurantPage() {
                   <FormItem>
                     <FormLabel>Website (Optional)</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="https://example.com"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value.trim())}
-                      />
+                      <Input placeholder="https://example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -248,7 +264,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Opening Time</FormLabel>
                       <FormControl>
-                        <Input placeholder="09:00" {...field} onChange={(e) => field.onChange(e.target.value.trim())} />
+                        <Input placeholder="09:00" {...field} />
                       </FormControl>
                       <FormDescription>Format: HH:MM (24-hour)</FormDescription>
                       <FormMessage />
@@ -262,7 +278,7 @@ export default function AddRestaurantPage() {
                     <FormItem>
                       <FormLabel>Closing Time</FormLabel>
                       <FormControl>
-                        <Input placeholder="22:00" {...field} onChange={(e) => field.onChange(e.target.value.trim())} />
+                        <Input placeholder="22:00" {...field} />
                       </FormControl>
                       <FormDescription>Format: HH:MM (24-hour)</FormDescription>
                       <FormMessage />
@@ -317,29 +333,32 @@ export default function AddRestaurantPage() {
                 <FormLabel>Restaurant Images</FormLabel>
                 <Input type="file" accept="image/*" multiple onChange={handleImageChange} />
                 <FormDescription>Upload at least 3 images (max 10MB each)</FormDescription>
-                {selectedImages.length > 0 && <div className="text-sm">{selectedImages.length} image(s) selected</div>}
-              </div>
-
-              <div className="space-y-2">
-                <FormLabel>Location</FormLabel>
-                <FormDescription>Click on the map to set the restaurant location</FormDescription>
-                <div className="h-[300px] w-full overflow-hidden rounded-md border">
-                  <RestaurantLocationPicker onLocationSelect={setCoordinates} />
-                </div>
-                {coordinates && (
-                  <div className="text-sm">
-                    Selected location: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                {selectedImages.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm">{selectedImages.length} image(s) selected</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {imagePreviews.map((url, index) => (
+                        <Image
+                          key={index}
+                          src={url}
+                          alt={`Preview ${index + 1}`}
+                          width={100}
+                          height={100}
+                          className="h-24 w-24 object-cover rounded-md"
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div> 
+              </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Adding Restaurant..." : "Add Restaurant"}
+                {isSubmitting ? 'Adding Restaurant...' : 'Add Restaurant'}
               </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

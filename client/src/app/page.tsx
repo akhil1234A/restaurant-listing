@@ -34,7 +34,7 @@ export default function HomePage() {
     try {
       const data = await getRestaurants(page, 10, search)
    
-      setRestaurants(data.data)
+      setRestaurants(data.restaurants)
       setPagination(data.pagination)
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch restaurants")
@@ -98,7 +98,7 @@ export default function HomePage() {
         <>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {restaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant._id} restaurant={restaurant} />
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
             ))}
           </div>
           <Pagination

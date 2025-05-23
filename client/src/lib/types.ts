@@ -68,7 +68,7 @@ export interface User {
 }
 
 export interface Restaurant {
-  _id: string
+  id: string
   name: string
   categories: string[]
   description?: string
