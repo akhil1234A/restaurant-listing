@@ -24,13 +24,13 @@ export class AuthController {
       const { accessToken, refreshToken, user } = await this.authService.registerUser(credentials);
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
@@ -54,13 +54,13 @@ export class AuthController {
       const { accessToken, refreshToken, user } = await this.authService.loginUser(credentials);
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
@@ -88,13 +88,13 @@ export class AuthController {
       const { accessToken, refreshToken: newRefreshToken, user } = await this.authService.refreshAuthToken(refreshToken);
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
@@ -116,12 +116,12 @@ export class AuthController {
     try {
       res.clearCookie('accessToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
       });
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.SECURE === 'true',
         sameSite: 'none',
       });
       res.status(STATUS_CODES.OK).json({ message: MESSAGES.LOGOUT_SUCCESS });
