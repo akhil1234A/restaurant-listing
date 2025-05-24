@@ -109,8 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }))
       toast.success("Login successful")
       router.push("/")
-    } catch (error: any) {
-      toast.error(error.message || "Login failed")
+    } catch (error) {
+      const err = error as Error
+      toast.error(err.message || "Login failed")
       throw error
     } finally {
       setIsLoading(false)
@@ -130,8 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }))
       toast.success("Registration successful")
       router.push("/")
-    } catch (error: any) {
-      toast.error(error.message || "Registration failed")
+    } catch (error) {
+      const err = error as Error; 
+      toast.error(err.message || "Registration failed")
       throw error
     } finally {
       setIsLoading(false)
@@ -147,8 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('authData')
       toast.success("Logged out successfully")
       router.push("/login")
-    } catch (error: any) {
-      toast.error(error.message || "Logout failed")
+    } catch (error) {
+      const err = error as Error; 
+      toast.error(err.message || "Logout failed")
     } finally {
       setIsLoading(false)
     }

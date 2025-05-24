@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search } from "lucide-react"
@@ -12,12 +13,42 @@ import type { Restaurant } from "@/lib/types"
 import RestaurantCard from "@/components/restaurant-card"
 import Pagination from "@/components/pagination"
 
-export default function HomePage() {
+// Component to handle search params and routing
+function SearchContent({
+  setSearchQuery,
+  setPagination,
+}: {
+  setSearchQuery: (query: string) => void
+  setPagination: React.Dispatch<
+    React.SetStateAction<{
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }>
+  >
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pageParam = searchParams.get("page")
   const searchParam = searchParams.get("search")
 
+  useEffect(() => {
+    const page = pageParam ? Number.parseInt(pageParam) : 1
+    setSearchQuery(searchParam || "")
+    setPagination((prev) => ({ ...prev, page }))
+
+    const params = new URLSearchParams(searchParams.toString())
+    if (page > 1) params.set("page", page.toString())
+    if (searchParam) params.set("search", searchParam)
+    const url = params.toString() ? `?${params.toString()}` : "/"
+    router.push(url, { scroll: false })
+  }, [pageParam, searchParam, router, setSearchQuery, setPagination])
+
+  return null
+}
+
+export default function HomePage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [pagination, setPagination] = useState({
     page: 1,
@@ -26,44 +57,36 @@ export default function HomePage() {
     totalPages: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState(searchParam || "")
+  const [searchQuery, setSearchQuery] = useState("")
   const debouncedSearch = useDebounce(searchQuery, 500)
 
   const fetchRestaurants = useCallback(async (page: number, search: string) => {
     setIsLoading(true)
     try {
       const data = await getRestaurants(page, 10, search)
-   
       setRestaurants(data.restaurants)
-      setPagination(data.pagination)
-    } catch (error: any) {
-      toast.error(error.message || "Failed to fetch restaurants")
+      setPagination((prev) => ({ ...prev, total: data.pagination.total, totalPages: data.pagination.totalPages }))
+    } catch (error) {
+      const err = error as Error
+      toast.error(err.message || "Failed to fetch restaurants")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    const page = pageParam ? Number.parseInt(pageParam) : 1
-    fetchRestaurants(page, debouncedSearch)
-
-    // Update URL with search params
-    const params = new URLSearchParams()
-    if (page > 1) params.set("page", page.toString())
-    if (debouncedSearch) params.set("search", debouncedSearch)
-
-    const url = params.toString() ? `?${params.toString()}` : "/"
-    router.push(url, { scroll: false })
-  }, [pageParam, debouncedSearch, fetchRestaurants, router])
+    fetchRestaurants(pagination.page, debouncedSearch)
+  }, [pagination.page, debouncedSearch, fetchRestaurants])
 
   const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", page.toString())
-    router.push(`?${params.toString()}`)
+    setPagination((prev) => ({ ...prev, page }))
   }
 
   return (
     <div className="container py-8">
+      <Suspense fallback={<div>Loading search parameters...</div>}>
+        <SearchContent setSearchQuery={setSearchQuery} setPagination={setPagination} />
+      </Suspense>
       <div className="mb-8 space-y-4">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Discover Restaurants</h1>
         <p className="text-muted-foreground">Find the best restaurants in your area</p>

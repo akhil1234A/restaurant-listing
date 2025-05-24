@@ -87,9 +87,10 @@ export default function EditRestaurantPage() {
         });
 
         setExistingImages(restaurant.images);
-      } catch (error: any) {
-        console.error('Error fetching restaurant:', error);
-        toast.error(error.message || 'Failed to fetch restaurant details');
+      } catch (error) {
+        const err = error as Error; 
+        console.error('Error fetching restaurant:', err.message);
+        toast.error(err.message || 'Failed to fetch restaurant details');
         router.push('/');
       } finally {
         setIsLoading(false);
@@ -169,9 +170,10 @@ export default function EditRestaurantPage() {
       await updateRestaurant(id as string, formData);
       toast.success('Restaurant updated successfully');
       router.push(`/restaurant/${id}`);
-    } catch (error: any) {
-      console.error('Error updating restaurant:', error);
-      toast.error(error.message || 'Failed to update restaurant');
+    } catch (error) {
+      const err = error as Error; 
+      console.error('Error updating restaurant:', err.message);
+      toast.error(err.message || 'Failed to update restaurant');
     } finally {
       setIsSubmitting(false);
     }

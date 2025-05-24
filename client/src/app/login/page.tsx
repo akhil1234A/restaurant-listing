@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { loginSchema, type LoginFormData } from "@/lib/types"
 import { useAuth } from "@/context/auth-context"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -28,7 +29,8 @@ export default function LoginPage() {
     try {
       await login(data)
     } catch (error) {
-      // Error is handled in the auth context
+      const err = error as Error; 
+      toast.error(err.message)
     } finally {
       setIsLoading(false)
     }

@@ -29,8 +29,9 @@ export default function RestaurantDetailPage() {
       try {
         const data = await getRestaurantById(id as string)
         setRestaurant(data.restaurant)
-      } catch (error: any) {
-        toast.error(error.message || "Failed to fetch restaurant details")
+      } catch (error) {
+        const err = error as Error; 
+        toast.error(err.message || "Failed to fetch restaurant details")
         router.push("/")
       } finally {
         setIsLoading(false)
@@ -48,8 +49,9 @@ export default function RestaurantDetailPage() {
       await deleteRestaurant(id as string)
       toast.success("Restaurant deleted successfully")
       router.push("/")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete restaurant")
+    } catch (error) {
+      const err = error as Error;
+      toast.error(err.message || "Failed to delete restaurant")
     } finally {
       setIsDeleting(false)
     }

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { signupSchema, type SignupFormData } from "@/lib/types"
 import { useAuth } from "@/context/auth-context"
+import { toast } from "sonner"
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -30,7 +31,8 @@ export default function RegisterPage() {
     try {
       await register(data)
     } catch (error) {
-      // Error is handled in the auth context
+      const err = error as Error; 
+      toast.error(err.message);
     } finally {
       setIsLoading(false)
     }
