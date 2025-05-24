@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { CustomError } from '../../core/errors/custom-error';
 import sharp from 'sharp';
@@ -22,7 +22,6 @@ export class S3Service {
 
   async uploadImage(file: Express.Multer.File, key: string): Promise<void> {
     try {
-      // Compress and resize image
       const compressedImage = await sharp(file.buffer)
         .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 80 })
@@ -53,4 +52,31 @@ export class S3Service {
       throw new CustomError('Failed to generate signed URL', 500);
     }
   }
+
+  async deleteImage(key: string): Promise<void> {
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+      await this.s3Client.send(command);
+    } catch (error) {
+      throw new CustomError('Failed to delete image from S3', 500);
+    }
+  }
+
+  async extractKeyFromSignedUrl(signedUrl: string): Promise<string> {
+    try {
+      const url = new URL(signedUrl);
+      const key = decodeURIComponent(url.pathname.slice(1)); 
+      if (!key) {
+        throw new CustomError('Invalid signed URL: No key found', 400);
+      }
+      return key;
+    } catch (error) {
+      throw new CustomError('Failed to extract key from signed URL', 400);
+    }
+  }
+  
+
 }

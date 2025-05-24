@@ -21,13 +21,11 @@ export class RestaurantRoutes {
   private configureRoutes() {
     this.router.get(
       '/',
-      this.authMiddleware.verifyToken.bind(this.authMiddleware),
       this.restaurantController.listAllRestaurants.bind(this.restaurantController)
     );
 
     this.router.get(
       '/:id',
-      this.authMiddleware.verifyToken.bind(this.authMiddleware),
       this.restaurantController.getRestaurantById.bind(this.restaurantController)
     );
 
@@ -38,7 +36,7 @@ export class RestaurantRoutes {
       this.restaurantController.createNewRestaurant.bind(this.restaurantController)
     );
 
-    this.router.put(
+    this.router.patch(
       '/:id',
       this.authMiddleware.verifyToken.bind(this.authMiddleware),
       this.fileUploadMiddleware.upload.array('images', 10),

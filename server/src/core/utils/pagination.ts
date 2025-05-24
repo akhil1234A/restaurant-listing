@@ -1,4 +1,5 @@
-import { CustomRequest } from '../../core/types/express';
+import { Request } from 'express';
+import { RestaurantDTO } from '../dtos/restaurant.dto';
 
 export interface PaginationParams {
   page: number;
@@ -7,7 +8,7 @@ export interface PaginationParams {
 }
 
 export interface PaginatedResponse<T> {
-  data: T;
+  restaurants: T[];
   pagination: {
     page: number;
     limit: number;
@@ -16,35 +17,22 @@ export interface PaginatedResponse<T> {
   };
 }
 
-/**
- * Extracts pagination parameters from request query
- * @param req CustomRequest
- * @returns PaginationParams
- */
-export function getPaginationParams(req: CustomRequest): PaginationParams {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const searchTerm = req.query.search as string | undefined;
-
-  return { page, limit, searchTerm };
+export function getPaginationParams(req: Request): PaginationParams {
+  return {
+    page: parseInt(req.query.page as string) || 1,
+    limit: parseInt(req.query.limit as string) || 10,
+    searchTerm: req.query.search as string | undefined,
+  };
 }
 
-/**
- * Formats pagination response
- * @param data The data to return
- * @param page Current page number
- * @param limit Items per page
- * @param total Total number of items
- * @returns PaginatedResponse
- */
 export function formatPaginatedResponse<T>(
-  data: T,
+  restaurants: T[],
   page: number,
   limit: number,
   total: number
 ): PaginatedResponse<T> {
   return {
-    data,
+    restaurants,
     pagination: {
       page,
       limit,

@@ -8,6 +8,7 @@ export const STATUS_CODES = {
 export const MESSAGES = {
   REGISTER_SUCCESS: 'User registered',
   LOGIN_SUCCESS: 'Login successful',
+  LOGOUT_SUCCESS: 'Logout successful',
   REFRESH_SUCCESS: 'Token refreshed', 
   REFRESH_TOKEN_REQUIRED: 'Refresh token required',
   ID_REQUIRED: 'User ID required',

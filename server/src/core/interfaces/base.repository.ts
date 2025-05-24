@@ -1,6 +1,6 @@
-import { Document } from "mongoose";
+import { Model } from 'mongoose';
 
-export interface IBaseRepository<T extends Document> {
+export interface IBaseRepository<T> {
   findById(id: string): Promise<T | null>;
   create(data: Partial<T>): Promise<T>;
   update(id: string, data: Partial<T>): Promise<T | null>;
