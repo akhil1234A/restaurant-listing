@@ -9,20 +9,10 @@ export const restaurantSchema = z.object({
     .regex(/^\d{5,10}$/, "Pin code must be 5-10 digits")
     .trim(),
   categories: z
-    .string()
-    .min(1, "At least one category required")
-    .transform((val) => {
-      try {
-        const parsed = JSON.parse(val)
-        if (!Array.isArray(parsed)) throw new Error("Categories must be an array")
-        return parsed
-      } catch {
-        throw new Error("Invalid categories format")
-      }
-    })
-    .pipe(z.array(z.string().min(1, "Category cannot be empty"))),
+    .array(z.enum(['restaurant', 'cafe', 'hotel', 'vegetarian']))
+    .min(1, "At least one category required"),
   description: z.string().trim().optional(),
-  website: z.string().trim().url("Invalid URL").optional(),
+  website: z.string().trim().url("Invalid URL").optional().or(z.literal('')),
   phoneNumber: z
     .string()
     .regex(/^\d{10}$/, "Phone number must be 10 digits")
@@ -35,9 +25,9 @@ export const restaurantSchema = z.object({
     .string()
     .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Closing time must be HH:MM")
     .trim(),
-  offersDelivery: z.boolean().default(false),
-  offersDineIn: z.boolean().default(false),
-  offersPickup: z.boolean().default(false),
+  offersDelivery: z.boolean(),
+  offersDineIn: z.boolean(),
+  offersPickup: z.boolean(),
 })
 
 export const loginSchema = z.object({
@@ -98,4 +88,11 @@ export interface RestaurantResponse {
     total: number
     totalPages: number
   }
+}
+
+export interface AuthResponse {
+  message: string;
+  user: User;
+  accessToken: string;
+  refreshToken: string;
 }

@@ -92,9 +92,6 @@ export default function RestaurantLocationPicker({
       onLoad={onLoad}
       onUnmount={onUnmount}
       onClick={onMapClick}
-      mapTypeControl={false}
-      fullscreenControl={false}
-      streetViewControl={false}
     >
       {markerPosition && (
         <Marker

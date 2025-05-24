@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -13,33 +13,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import * as z from 'zod';
+import { restaurantSchema, RestaurantFormData } from '@/lib/types';
 import Select from 'react-select';
 import { getRestaurantById, updateRestaurant } from '@/lib/api';
 import Image from 'next/image';
 import { X } from 'lucide-react';
 
-// Define the schema
-export const restaurantSchema = z.object({
-  name: z.string().min(3, 'Name must be at least 3 characters'),
-  address: z.string().min(5, 'Address must be at least 5 characters'),
-  city: z.string().min(2, 'City must be at least 2 characters'),
-  pinCode: z.string().regex(/^\d{5,10}$/, 'Pin code must be 5-10 digits'),
-  categories: z.array(z.string()).min(1, 'At least one category required'),
-  description: z.string().optional(),
-  website: z.string().url('Invalid URL').optional(),
-  phoneNumber: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits'),
-  openingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Opening time must be HH:MM'),
-  closingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Closing time must be HH:MM'),
-  offersDelivery: z.boolean().default(false),
-  offersDineIn: z.boolean().default(false),
-  offersPickup: z.boolean().default(false),
-});
-
-type RestaurantFormData = z.infer<typeof restaurantSchema>;
-
 // Options for react-select
-const categoryOptions = [
+type CategoryOption = {
+  value: 'restaurant' | 'cafe' | 'hotel' | 'vegetarian';
+  label: string;
+};
+
+const categoryOptions: CategoryOption[] = [
   { value: 'restaurant', label: 'Restaurant' },
   { value: 'cafe', label: 'Cafe' },
   { value: 'hotel', label: 'Hotel' },
@@ -87,15 +73,17 @@ export default function EditRestaurantPage() {
           address: restaurant.address,
           city: restaurant.city,
           pinCode: restaurant.pinCode,
-          categories: restaurant.categories,
+          categories: (restaurant.categories as string[]).filter((cat): cat is CategoryOption['value'] =>
+            ['restaurant', 'cafe', 'hotel', 'vegetarian'].includes(cat)
+          ),
           description: restaurant.description || '',
           website: restaurant.website || '',
           phoneNumber: restaurant.phoneNumber,
           openingTime: restaurant.openingTime,
           closingTime: restaurant.closingTime,
-          offersDelivery: restaurant.offersDelivery,
-          offersDineIn: restaurant.offersDineIn,
-          offersPickup: restaurant.offersPickup,
+          offersDelivery: restaurant.offersDelivery ?? false,
+          offersDineIn: restaurant.offersDineIn ?? false,
+          offersPickup: restaurant.offersPickup ?? false,
         });
 
         setExistingImages(restaurant.images);
@@ -119,7 +107,13 @@ export default function EditRestaurantPage() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const fileArray = Array.from(e.target.files);
+      const fileArray = Array.from(e.target.files).filter((file) => {
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} exceeds 10MB limit`);
+          return false;
+        }
+        return true;
+      });
       imagePreviews.forEach((url) => URL.revokeObjectURL(url));
       const newPreviews = fileArray.map((file) => URL.createObjectURL(file));
       setSelectedImages(fileArray);
@@ -128,12 +122,24 @@ export default function EditRestaurantPage() {
   };
 
   const handleRemoveExistingImage = (imageUrl: string) => {
-    setImagesToRemove((prev) => [...prev, imageUrl]);
-    setExistingImages((prev) => prev.filter((url) => url !== imageUrl));
+    if (confirm('Are you sure you want to remove this image?')) {
+      setImagesToRemove((prev) => [...prev, imageUrl]);
+      setExistingImages((prev) => prev.filter((url) => url !== imageUrl));
+    }
   };
 
-  const onSubmit = async (data: RestaurantFormData) => {
-    // Validate that at least 3 images remain
+  const removeNewImage = (index: number) => {
+    if (confirm('Are you sure you want to remove this image?')) {
+      setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+      setImagePreviews((prev) => {
+        const url = prev[index];
+        URL.revokeObjectURL(url);
+        return prev.filter((_, i) => i !== index);
+      });
+    }
+  };
+
+  const onSubmit: SubmitHandler<RestaurantFormData> = async (data) => {
     const remainingImages = existingImages.length + selectedImages.length;
     if (remainingImages < 3) {
       toast.error('At least 3 images are required');
@@ -144,37 +150,21 @@ export default function EditRestaurantPage() {
 
     try {
       const formData = new FormData();
-
-      // Add categories as JSON array
-      console.log('Categories before FormData:', data.categories); // Debug log
       formData.append('categories', JSON.stringify(data.categories));
-
-      // Add other fields
       Object.entries(data).forEach(([key, value]) => {
         if (key !== 'categories') {
-          formData.append(key, String(value));
+          formData.append(key, String(value ?? ''));
         }
       });
-
-      // Add new images
       selectedImages.forEach((image) => {
         formData.append('images', image);
       });
-
-      // Add images to keep (existing images not marked for removal)
       existingImages.forEach((url) => {
         formData.append('imagesToKeep', url);
       });
-
-      // Add images to remove
       imagesToRemove.forEach((url) => {
         formData.append('imagesToRemove', url);
       });
-
-      // Debug FormData content
-      for (const [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-      }
 
       await updateRestaurant(id as string, formData);
       toast.success('Restaurant updated successfully');
@@ -189,7 +179,7 @@ export default function EditRestaurantPage() {
 
   if (isLoading) {
     return (
-      <div className="container py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="mx-auto max-w-3xl">
           <CardHeader>
             <Skeleton className="h-8 w-1/3" />
@@ -208,7 +198,7 @@ export default function EditRestaurantPage() {
   }
 
   return (
-    <div className="container py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <Card className="mx-auto max-w-3xl">
         <CardHeader>
           <CardTitle className="text-2xl">Edit Restaurant</CardTitle>
@@ -225,7 +215,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Restaurant Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Restaurant Name" {...field} />
+                        <Input placeholder="Restaurant Name" {...field} aria-label="Restaurant Name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -241,10 +231,15 @@ export default function EditRestaurantPage() {
                         <Select
                           isMulti
                           options={categoryOptions}
-                          onChange={(selected) => field.onChange(selected.map((option) => option.value))}
+                          onChange={(selected) =>
+                            field.onChange(
+                              selected.map((option) => option.value)
+                            )
+                          }
                           value={categoryOptions.filter((option) => field.value.includes(option.value))}
                           placeholder="Select categories"
                           classNamePrefix="react-select"
+                          aria-label="Select restaurant categories"
                         />
                       </FormControl>
                       <FormDescription>Select one or more categories</FormDescription>
@@ -261,7 +256,7 @@ export default function EditRestaurantPage() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe the restaurant" className="resize-none" {...field} />
+                      <Textarea placeholder="Describe the restaurant" className="resize-none" {...field} aria-label="Restaurant Description" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -276,7 +271,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="123 Main St" {...field} />
+                        <Input placeholder="123 Main St" {...field} aria-label="Restaurant Address" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -289,7 +284,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input placeholder="New York" {...field} />
+                        <Input placeholder="New York" {...field} aria-label="City" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -305,7 +300,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Pin Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="10001" {...field} />
+                        <Input placeholder="10001" {...field} aria-label="Pin Code" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,7 +313,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="1234567890" {...field} />
+                        <Input placeholder="1234567890" {...field} aria-label="Phone Number" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -333,7 +328,7 @@ export default function EditRestaurantPage() {
                   <FormItem>
                     <FormLabel>Website (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com" {...field} />
+                      <Input placeholder="https://example.com" {...field} value={field.value ?? ''} aria-label="Website" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -348,7 +343,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Opening Time</FormLabel>
                       <FormControl>
-                        <Input placeholder="09:00" {...field} />
+                        <Input placeholder="09:00" {...field} aria-label="Opening Time" />
                       </FormControl>
                       <FormDescription>Format: HH:MM (24-hour)</FormDescription>
                       <FormMessage />
@@ -362,7 +357,7 @@ export default function EditRestaurantPage() {
                     <FormItem>
                       <FormLabel>Closing Time</FormLabel>
                       <FormControl>
-                        <Input placeholder="22:00" {...field} />
+                        <Input placeholder="22:00" {...field} aria-label="Closing Time" />
                       </FormControl>
                       <FormDescription>Format: HH:MM (24-hour)</FormDescription>
                       <FormMessage />
@@ -380,7 +375,7 @@ export default function EditRestaurantPage() {
                     render={({ field }) => (
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Delivery" />
                         </FormControl>
                         <FormLabel className="font-normal">Delivery</FormLabel>
                       </FormItem>
@@ -392,7 +387,7 @@ export default function EditRestaurantPage() {
                     render={({ field }) => (
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Dine-in" />
                         </FormControl>
                         <FormLabel className="font-normal">Dine-in</FormLabel>
                       </FormItem>
@@ -404,7 +399,7 @@ export default function EditRestaurantPage() {
                     render={({ field }) => (
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Pickup" />
                         </FormControl>
                         <FormLabel className="font-normal">Pickup</FormLabel>
                       </FormItem>
@@ -417,7 +412,7 @@ export default function EditRestaurantPage() {
                 <FormLabel>Restaurant Images</FormLabel>
                 <div className="mb-2">
                   <p className="text-sm text-muted-foreground">
-                    Current images: {existingImages.length} (At least 3 images required)
+                    Current images: {existingImages.length + selectedImages.length} (At least 3 images required)
                   </p>
                 </div>
                 {existingImages.length > 0 && (
@@ -438,6 +433,7 @@ export default function EditRestaurantPage() {
                             size="icon"
                             className="absolute top-0 right-0 h-6 w-6"
                             onClick={() => handleRemoveExistingImage(url)}
+                            aria-label={`Remove image ${index + 1}`}
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -446,30 +442,61 @@ export default function EditRestaurantPage() {
                     </div>
                   </div>
                 )}
-                <Input type="file" accept="image/*" multiple onChange={handleImageChange} />
-                <FormDescription>Upload additional images if needed (max 10MB each)</FormDescription>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handleImageChange}
+                  aria-label="Upload additional restaurant images"
+                />
+                <FormDescription>Upload additional images if needed (max 10MB each, JPEG/PNG/WebP)</FormDescription>
                 {selectedImages.length > 0 && (
                   <div className="space-y-2">
                     <div className="text-sm">{selectedImages.length} new image(s) selected</div>
                     <div className="grid grid-cols-3 gap-2">
                       {imagePreviews.map((url, index) => (
-                        <Image
-                          key={index}
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          width={100}
-                          height={100}
-                          className="h-24 w-24 object-cover rounded-md"
-                        />
+                        <div key={index} className="relative">
+                          <Image
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            width={100}
+                            height={100}
+                            className="h-24 w-24 object-cover rounded-md"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-0 right-0 h-6 w-6"
+                            onClick={() => removeNewImage(index)}
+                            aria-label={`Remove image ${index + 1}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Updating Restaurant...' : 'Update Restaurant'}
-              </Button>
+              <div className="flex gap-4">
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Updating Restaurant...' : 'Update Restaurant'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => form.reset()}
+                  disabled={isSubmitting}
+                >
+                  Reset
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>

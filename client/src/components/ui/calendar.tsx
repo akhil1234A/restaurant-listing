@@ -53,10 +53,7 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-      }}
+      // Removed custom navigation icons as 'IconLeft' and 'IconRight' are not supported in this version
       {...props}
     />
   )

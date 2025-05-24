@@ -29,7 +29,7 @@ export default function RestaurantMap({ latitude, longitude, name }: RestaurantM
         const position = { lat: latitude, lng: longitude }
 
         // Create map instance
-        const map = new google.maps.Map(mapRef.current, {
+        const map = new google.maps.Map(mapRef.current!, {
           center: position,
           zoom: 15,
           mapTypeControl: false,

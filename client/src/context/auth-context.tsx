@@ -1,13 +1,24 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { toast } from "sonner"
 import type { User } from "@/lib/types"
 import { login as loginApi, register as registerApi, refreshToken, logout as logoutApi } from "@/lib/api"
 import type { LoginFormData, SignupFormData } from "@/lib/types"
+
+// Utility to decode JWT and check expiry
+const isTokenValid = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const expiry = payload.exp * 1000 // Convert to milliseconds
+    return Date.now() < expiry
+  } catch (error) {
+    console.error('Error decoding token:', error)
+    return false
+  }
+}
 
 interface AuthContextType {
   user: User | null
@@ -31,10 +42,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await refreshToken()
-        setUser(response.user)
-      } catch (error) {
+        // Check localStorage for auth data
+        const authData = localStorage.getItem('authData')
+        if (authData) {
+          const { user, accessToken, refreshToken: storedRefreshToken } = JSON.parse(authData)
+          
+          // Validate accessToken
+          if (accessToken && isTokenValid(accessToken)) {
+            setUser(user)
+            return
+          }
+
+          // If accessToken is expired, try to refresh
+          if (storedRefreshToken) {
+            const response = await refreshToken()
+            setUser(response.user)
+            // Store new auth data
+            localStorage.setItem('authData', JSON.stringify({
+              user: response.user,
+              accessToken: response.accessToken,
+              refreshToken: response.refreshToken
+            }))
+            return
+          }
+        }
+
+        // No valid auth data, clear user
         setUser(null)
+      } catch (error) {
+        console.error('Auth check failed:', error)
+        setUser(null)
+        localStorage.removeItem('authData')
       } finally {
         setIsLoading(false)
       }
@@ -63,6 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await loginApi(data)
       setUser(response.user)
+      // Store in localStorage
+      localStorage.setItem('authData', JSON.stringify({
+        user: response.user,
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken
+      }))
       toast.success("Login successful")
       router.push("/")
     } catch (error: any) {
@@ -78,6 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await registerApi(data)
       setUser(response.user)
+      // Store in localStorage
+      localStorage.setItem('authData', JSON.stringify({
+        user: response.user,
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken
+      }))
       toast.success("Registration successful")
       router.push("/")
     } catch (error: any) {
@@ -93,6 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await logoutApi()
       setUser(null)
+      // Clear localStorage
+      localStorage.removeItem('authData')
       toast.success("Logged out successfully")
       router.push("/login")
     } catch (error: any) {

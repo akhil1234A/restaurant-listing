@@ -1,5 +1,5 @@
 
-import type { LoginFormData, SignupFormData, RestaurantResponse, Restaurant } from "@/lib/types";
+import type { LoginFormData, SignupFormData, RestaurantResponse, Restaurant, AuthResponse } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -13,7 +13,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // Auth API calls
-export async function login(data: LoginFormData) {
+export async function login(data: LoginFormData): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
     headers: {
@@ -25,7 +25,7 @@ export async function login(data: LoginFormData) {
   return handleResponse(response);
 }
 
-export async function register(data: SignupFormData) {
+export async function register(data: SignupFormData): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
     headers: {
@@ -41,7 +41,7 @@ export async function register(data: SignupFormData) {
   return handleResponse(response);
 }
 
-export async function refreshToken() {
+export async function refreshToken(): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/api/auth/refresh`, {
     method: "POST",
     credentials: "include",
