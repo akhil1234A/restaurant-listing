@@ -25,13 +25,13 @@ export class AuthController {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
       res.status(STATUS_CODES.CREATED).json({ message: MESSAGES.REGISTER_SUCCESS, user, accessToken, refreshToken });
@@ -55,13 +55,13 @@ export class AuthController {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
       res.status(STATUS_CODES.OK).json({ message: MESSAGES.LOGIN_SUCCESS, user, accessToken, refreshToken });
@@ -89,13 +89,13 @@ export class AuthController {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 15 * 60 * 1000, // 15 minutes
       });
       res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
       res.status(STATUS_CODES.OK).json({ message: MESSAGES.REFRESH_SUCCESS, user, accessToken, newRefreshToken });
@@ -117,12 +117,12 @@ export class AuthController {
       res.clearCookie('accessToken', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
       });
       res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
       });
       res.status(STATUS_CODES.OK).json({ message: MESSAGES.LOGOUT_SUCCESS });
     } catch (error) {
