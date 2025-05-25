@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/context/auth-context"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
+import InstallPrompt from "@/components/InstallPrompt"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -22,6 +23,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#3b82f6"/>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
@@ -37,6 +44,7 @@ export default function RootLayout({
               </main>
               <Footer />
               <Toaster position="top-center" richColors />
+              <InstallPrompt/>
             </div>
           </AuthProvider>
         </ThemeProvider>
