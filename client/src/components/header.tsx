@@ -18,6 +18,7 @@ export default function Header() {
 
   const routes = [
     { href: "/", label: "Home", active: pathname === "/" },
+    ...(isAuthenticated ? [{ href: "/restaurants", label: "Restaurants", active: pathname.startsWith("/restaurants") }] : []),
   ]
 
   return (

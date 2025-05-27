@@ -169,7 +169,7 @@ export default function EditRestaurantPage() {
 
       await updateRestaurant(id as string, formData);
       toast.success('Restaurant updated successfully');
-      router.push(`/restaurant/${id}`);
+      router.push(`/restaurants/${id}`);
     } catch (error) {
       const err = error as Error; 
       console.error('Error updating restaurant:', err.message);

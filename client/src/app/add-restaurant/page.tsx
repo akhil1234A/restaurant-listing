@@ -111,7 +111,7 @@ export default function AddRestaurantPage() {
 
       await createRestaurant(formData);
       toast.success('Restaurant added successfully');
-      router.push('/');
+      router.push('/restaurants');
     } catch (error) {
       const err = error as Error; 
       console.error('Error adding restaurant:', err.message);
