@@ -65,7 +65,7 @@ export default function RestaurantsPage() {
   const fetchRestaurants = useCallback(async (page: number, search: string) => {
     setIsLoading(true)
     try {
-      const data = await getRestaurants(page, 10, search)
+      const data = await getRestaurants(page, 3, search)
       setRestaurants(data.restaurants)
       setPagination((prev) => ({ ...prev, total: data.pagination.total, totalPages: data.pagination.totalPages }))
     } catch (error) {

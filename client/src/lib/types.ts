@@ -28,7 +28,11 @@ export const restaurantSchema = z.object({
   offersDelivery: z.boolean(),
   offersDineIn: z.boolean(),
   offersPickup: z.boolean(),
+  latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
+  longitude: z.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
 })
+
+export type Category = 'restaurant' | 'cafe' | 'hotel' | 'vegetarian';
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email").trim(),
@@ -60,7 +64,7 @@ export interface User {
 export interface Restaurant {
   id: string
   name: string
-  categories: string[]
+  categories: Category[]
   description?: string
   address: string
   city: string

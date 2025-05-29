@@ -1,63 +1,80 @@
-"use client"
+'use client';
 
-import { useEffect, useRef } from "react"
-import { Loader } from "@googlemaps/js-api-loader"
+import { useCallback, useState } from 'react';
+import { GoogleMap } from '@react-google-maps/api';
+import { Button } from '@/components/ui/button';
+
+const containerStyle = {
+  width: '100%',
+  height: '400px',
+};
 
 interface RestaurantMapProps {
-  latitude: number
-  longitude: number
-  name: string
+  latitude?: number;
+  longitude?: number;
+  name: string;
 }
 
 export default function RestaurantMap({ latitude, longitude, name }: RestaurantMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
 
-  useEffect(() => {
-    // Initialize map only if coordinates are valid
-    if (!latitude || !longitude || !mapRef.current) return
-
-    const initMap = async () => {
-      // Load Google Maps API
-      const loader = new Loader({
-        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-        version: "weekly",
-      })
-
-      try {
-        await loader.load()
-        const position = { lat: latitude, lng: longitude }
-
-        // Create map instance
-        const map = new google.maps.Map(mapRef.current!, {
-          center: position,
-          zoom: 15,
-          mapTypeControl: false,
-          fullscreenControl: false,
-          streetViewControl: false,
-        })
-
-        mapInstanceRef.current = map
-
-        // Add marker
-        new google.maps.Marker({
-          position,
-          map,
-          title: name,
-          animation: google.maps.Animation.DROP,
-        })
-      } catch (error) {
-        console.error("Error loading Google Maps:", error)
-      }
+  const onLoad = useCallback((mapInstance: google.maps.Map) => {
+    setMap(mapInstance);
+    if (latitude != null && longitude != null) {
+      const newMarker = new google.maps.Marker({
+        map: mapInstance,
+        position: { lat: latitude, lng: longitude },
+        title: name,
+      });
+      setMarker(newMarker);
     }
+  }, [latitude, longitude, name]);
 
-    initMap()
-
-    // Cleanup
-    return () => {
-      mapInstanceRef.current = null
+  const onUnmount = useCallback(() => {
+    setMap(null);
+    if (marker) {
+      marker.setMap(null);
     }
-  }, [latitude, longitude, name])
+    if (map) {
+      google.maps.event.clearInstanceListeners(map);
+    }
+  }, [map, marker]);
 
-  return <div ref={mapRef} className="h-full w-full" />
+  if (latitude == null || longitude == null) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center text-gray-600">
+        Location not available
+      </div>
+    );
+  }
+
+  const position = { lat: latitude, lng: longitude };
+  const googleMapsUrl = `https://www.google.com/maps/@${latitude},${longitude},15z`;
+
+  return (
+    <div className="relative" role="region" aria-label={`Map showing location of ${name}`}>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={position}
+        zoom={13}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{
+          zoomControl: true,
+          draggable: true,
+          disableDefaultUI: false,
+          streetViewControl: true,
+          mapTypeControl: true,
+        }}
+      />
+      <div className="absolute bottom-4 left-4">
+        <Button asChild variant="secondary">
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+            View on Google Maps
+          </a>
+        </Button>
+      </div>
+    </div>
+  );
 }

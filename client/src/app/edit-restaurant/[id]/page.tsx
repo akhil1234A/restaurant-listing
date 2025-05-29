@@ -11,15 +11,17 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { restaurantSchema, RestaurantFormData } from '@/lib/types';
 import Select from 'react-select';
 import { getRestaurantById, updateRestaurant } from '@/lib/api';
 import Image from 'next/image';
 import { X } from 'lucide-react';
+import MapProvider from '@/components/map-provider';
+import RestaurantLocationPicker from '@/components/restaurant-location-picker';
 
-// Options for react-select
+// ... (CategoryOption and categoryOptions unchanged)
 type CategoryOption = {
   value: 'restaurant' | 'cafe' | 'hotel' | 'vegetarian';
   label: string;
@@ -31,7 +33,6 @@ const categoryOptions: CategoryOption[] = [
   { value: 'hotel', label: 'Hotel' },
   { value: 'vegetarian', label: 'Vegetarian' },
 ];
-
 export default function EditRestaurantPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -58,6 +59,8 @@ export default function EditRestaurantPage() {
       offersDelivery: false,
       offersDineIn: false,
       offersPickup: false,
+      latitude: 0,
+      longitude: 0,
     },
   });
 
@@ -65,7 +68,7 @@ export default function EditRestaurantPage() {
     const fetchRestaurant = async () => {
       setIsLoading(true);
       try {
-        const data = await getRestaurantById(id as string);
+        const data = await getRestaurantById(id);
         const restaurant = data.restaurant;
 
         form.reset({
@@ -73,9 +76,7 @@ export default function EditRestaurantPage() {
           address: restaurant.address,
           city: restaurant.city,
           pinCode: restaurant.pinCode,
-          categories: (restaurant.categories as string[]).filter((cat): cat is CategoryOption['value'] =>
-            ['restaurant', 'cafe', 'hotel', 'vegetarian'].includes(cat)
-          ),
+          categories: restaurant.categories,
           description: restaurant.description || '',
           website: restaurant.website || '',
           phoneNumber: restaurant.phoneNumber,
@@ -84,14 +85,15 @@ export default function EditRestaurantPage() {
           offersDelivery: restaurant.offersDelivery ?? false,
           offersDineIn: restaurant.offersDineIn ?? false,
           offersPickup: restaurant.offersPickup ?? false,
+          latitude: restaurant.latitude || 0,
+          longitude: restaurant.longitude || 0,
         });
 
         setExistingImages(restaurant.images);
       } catch (error) {
-        const err = error as Error; 
-        console.error('Error fetching restaurant:', err.message);
-        toast.error(err.message || 'Failed to fetch restaurant details');
-        router.push('/');
+        console.error('Error fetching restaurant:', error);
+        toast.error('Failed to fetch restaurant details');
+        router.push('/restaurants');
       } finally {
         setIsLoading(false);
       }
@@ -146,6 +148,10 @@ export default function EditRestaurantPage() {
       toast.error('At least 3 images are required');
       return;
     }
+    if (data.latitude === 0 && data.longitude === 0) {
+      toast.error('Please select a valid location on the map');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -154,7 +160,7 @@ export default function EditRestaurantPage() {
       formData.append('categories', JSON.stringify(data.categories));
       Object.entries(data).forEach(([key, value]) => {
         if (key !== 'categories') {
-          formData.append(key, String(value ?? ''));
+          formData.append(key, String(value));
         }
       });
       selectedImages.forEach((image) => {
@@ -167,13 +173,12 @@ export default function EditRestaurantPage() {
         formData.append('imagesToRemove', url);
       });
 
-      await updateRestaurant(id as string, formData);
+      await updateRestaurant(id, formData);
       toast.success('Restaurant updated successfully');
       router.push(`/restaurants/${id}`);
     } catch (error) {
-      const err = error as Error; 
-      console.error('Error updating restaurant:', err.message);
-      toast.error(err.message || 'Failed to update restaurant');
+      console.error('Error updating restaurant:', error);
+      toast.error('Failed to update restaurant');
     } finally {
       setIsSubmitting(false);
     }
@@ -188,11 +193,9 @@ export default function EditRestaurantPage() {
             <Skeleton className="h-4 w-1/2" />
           </CardHeader>
           <CardContent className="space-y-6">
-            {Array(8)
-              .fill(0)
-              .map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
+            {Array(8).fill(0).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -207,107 +210,88 @@ export default function EditRestaurantPage() {
           <CardDescription>Update the details of your restaurant</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
+          <MapProvider>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Restaurant Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Name" {...field} aria-label="Restaurant Name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="categories"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categories</FormLabel>
+                        <FormControl>
+                          <Select
+                            isMulti
+                            options={categoryOptions}
+                            onChange={(selected) =>
+                              field.onChange(selected.map((option) => option.value))
+                            }
+                            value={categoryOptions.filter((option) => field.value.includes(option.value))}
+                            placeholder="Select categories"
+                            classNamePrefix="react-select"
+                            aria-label="Select restaurant categories"
+                          />
+                        </FormControl>
+                        <FormDescription>Select one or more categories</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Restaurant Name</FormLabel>
+                      <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Input placeholder="Restaurant Name" {...field} aria-label="Restaurant Name" />
+                        <Textarea placeholder="Describe the restaurant" className="resize-none" {...field} aria-label="Restaurant Description" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="categories"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categories</FormLabel>
-                      <FormControl>
-                        <Select
-                          isMulti
-                          options={categoryOptions}
-                          onChange={(selected) =>
-                            field.onChange(
-                              selected.map((option) => option.value)
-                            )
-                          }
-                          value={categoryOptions.filter((option) => field.value.includes(option.value))}
-                          placeholder="Select categories"
-                          classNamePrefix="react-select"
-                          aria-label="Select restaurant categories"
-                        />
-                      </FormControl>
-                      <FormDescription>Select one or more categories</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Describe the restaurant" className="resize-none" {...field} aria-label="Restaurant Description" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>Location</FormLabel>
                       <FormControl>
-                        <Input placeholder="123 Main St" {...field} aria-label="Restaurant Address" />
+                        <RestaurantLocationPicker
+                          initialLat={form.getValues('latitude')}
+                          initialLng={form.getValues('longitude')}
+                          initialAddress={field.value}
+                          onLocationSelect={({ lat, lng, address, city, pinCode }) => {
+                            form.setValue('latitude', lat);
+                            form.setValue('longitude', lng);
+                            form.setValue('address', address);
+                            form.setValue('city', city);
+                            form.setValue('pinCode', pinCode);
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input placeholder="New York" {...field} aria-label="City" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="pinCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pin Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="10001" {...field} aria-label="Pin Code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <FormField
                   control={form.control}
                   name="phoneNumber"
@@ -321,186 +305,186 @@ export default function EditRestaurantPage() {
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com" {...field} value={field.value ?? ''} aria-label="Website" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="openingTime"
+                  name="website"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Opening Time</FormLabel>
+                      <FormLabel>Website (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="09:00" {...field} aria-label="Opening Time" />
+                        <Input placeholder="https://example.com" {...field} value={field.value ?? ''} aria-label="Website" />
                       </FormControl>
-                      <FormDescription>Format: HH:MM (24-hour)</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="closingTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Closing Time</FormLabel>
-                      <FormControl>
-                        <Input placeholder="22:00" {...field} aria-label="Closing Time" />
-                      </FormControl>
-                      <FormDescription>Format: HH:MM (24-hour)</FormDescription>
-                      <FormMessage />
-                    </FormItem>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="openingTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Opening Time</FormLabel>
+                        <FormControl>
+                          <Input placeholder="09:00" {...field} aria-label="Opening Time" />
+                        </FormControl>
+                        <FormDescription>Format: HH:MM (24-hour)</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="closingTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Closing Time</FormLabel>
+                        <FormControl>
+                          <Input placeholder="22:00" {...field} aria-label="Closing Time" />
+                        </FormControl>
+                        <FormDescription>Format: HH:MM (24-hour)</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel>Services Offered</FormLabel>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="offersDelivery"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Delivery" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Delivery</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="offersDineIn"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Dine-in" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Dine-in</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="offersPickup"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Pickup" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Pickup</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel>Restaurant Images</FormLabel>
+                  <div className="mb-2">
+                    <p className="text-sm text-muted-foreground">
+                      Current images: {existingImages.length + selectedImages.length} (At least 3 images required)
+                    </p>
+                  </div>
+                  {existingImages.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm">Existing Images</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {existingImages.map((url, index) => (
+                          <div key={index} className="relative">
+                            <Image
+                              src={url}
+                              alt={`Existing ${index + 1}`}
+                              width={100}
+                              height={100}
+                              className="h-24 w-24 object-cover rounded-md"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-0 right-0 h-6 w-6"
+                              onClick={() => handleRemoveExistingImage(url)}
+                              aria-label={`Remove image ${index + 1}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <FormLabel>Services Offered</FormLabel>
-                <div className="grid gap-2 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="offersDelivery"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Delivery" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Delivery</FormLabel>
-                      </FormItem>
-                    )}
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleImageChange}
+                    aria-label="Upload additional restaurant images"
                   />
-                  <FormField
-                    control={form.control}
-                    name="offersDineIn"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Dine-in" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Dine-in</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="offersPickup"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} aria-label="Offers Pickup" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Pickup</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <FormLabel>Restaurant Images</FormLabel>
-                <div className="mb-2">
-                  <p className="text-sm text-muted-foreground">
-                    Current images: {existingImages.length + selectedImages.length} (At least 3 images required)
-                  </p>
-                </div>
-                {existingImages.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-sm">Existing Images</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {existingImages.map((url, index) => (
-                        <div key={index} className="relative">
-                          <Image
-                            src={url}
-                            alt={`Existing ${index + 1}`}
-                            width={100}
-                            height={100}
-                            className="h-24 w-24 object-cover rounded-md"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-0 right-0 h-6 w-6"
-                            onClick={() => handleRemoveExistingImage(url)}
-                            aria-label={`Remove image ${index + 1}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                  <FormDescription>Upload additional images if needed (max 10MB each, JPEG/PNG/WebP)</FormDescription>
+                  {selectedImages.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm">{selectedImages.length} new image(s) selected</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {imagePreviews.map((url, index) => (
+                          <div key={index} className="relative">
+                            <Image
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              width={100}
+                              height={100}
+                              className="h-24 w-24 object-cover rounded-md"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-0 right-0 h-6 w-6"
+                              onClick={() => removeNewImage(index)}
+                              aria-label={`Remove image ${index + 1}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  onChange={handleImageChange}
-                  aria-label="Upload additional restaurant images"
-                />
-                <FormDescription>Upload additional images if needed (max 10MB each, JPEG/PNG/WebP)</FormDescription>
-                {selectedImages.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-sm">{selectedImages.length} new image(s) selected</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {imagePreviews.map((url, index) => (
-                        <div key={index} className="relative">
-                          <Image
-                            src={url}
-                            alt={`Preview ${index + 1}`}
-                            width={100}
-                            height={100}
-                            className="h-24 w-24 object-cover rounded-md"
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-0 right-0 h-6 w-6"
-                            onClick={() => removeNewImage(index)}
-                            aria-label={`Remove image ${index + 1}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div className="flex gap-4">
-                <Button
-                  type="submit"
-                  className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-400 dark:hover:bg-blue-500"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Updating Restaurant...' : 'Update Restaurant'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => form.reset()}
-                  disabled={isSubmitting}
-                >
-                  Reset
-                </Button>
-              </div>
-            </form>
-          </Form>
+                <div className="flex gap-4">
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Updating Restaurant...' : 'Update Restaurant'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => form.reset()}
+                    disabled={isSubmitting}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </MapProvider>
         </CardContent>
       </Card>
     </div>

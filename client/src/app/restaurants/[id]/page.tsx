@@ -1,61 +1,62 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
-import { Clock, MapPin, Phone, Globe, Truck, UtensilsCrossed, ShoppingBag, Pencil, Trash2 } from "lucide-react"
-import { useAuth } from "@/context/auth-context"
-import { getRestaurantById, deleteRestaurant } from "@/lib/api"
-import type { Restaurant } from "@/lib/types"
-import RestaurantMap from "@/components/restaurant-map"
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Clock, MapPin, Phone, Globe, Truck, UtensilsCrossed, ShoppingBag, Pencil, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { getRestaurantById, deleteRestaurant } from '@/lib/api';
+import type { Restaurant } from '@/lib/types';
+import MapProvider from '@/components/map-provider';
+import RestaurantMap from '@/components/restaurant-map';
 
 export default function RestaurantDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const router = useRouter()
-  const { user, isAuthenticated } = useAuth()
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchRestaurant = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const data = await getRestaurantById(id as string)
-        setRestaurant(data.restaurant)
+        const data = await getRestaurantById(id);
+        setRestaurant(data.restaurant);
       } catch (error) {
-        const err = error as Error; 
-        toast.error(err.message || "Failed to fetch restaurant details")
-        router.push("/")
+        const err = error as Error;
+        toast.error(err.message || 'Failed to fetch restaurant details');
+        router.push('/');
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchRestaurant()
-  }, [id, router])
+    fetchRestaurant();
+  }, [id, router]);
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this restaurant?")) return
+    if (!confirm('Are you sure you want to delete this restaurant?')) return;
 
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      await deleteRestaurant(id as string)
-      toast.success("Restaurant deleted successfully")
-      router.push("/")
+      await deleteRestaurant(id);
+      toast.success('Restaurant deleted successfully');
+      router.push('/');
     } catch (error) {
       const err = error as Error;
-      toast.error(err.message || "Failed to delete restaurant")
+      toast.error(err.message || 'Failed to delete restaurant');
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -74,12 +75,12 @@ export default function RestaurantDetailPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!restaurant) return null
+  if (!restaurant) return null;
 
-  const isOwner = isAuthenticated && user?.id === restaurant.userId
+  const isOwner = isAuthenticated && user?.id === restaurant.userId;
 
   return (
     <div className="container py-8">
@@ -87,7 +88,7 @@ export default function RestaurantDetailPage() {
         <div className="space-y-4">
           <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
             <Image
-              src={restaurant.images[activeImageIndex] || "/placeholder.svg?height=480&width=640"}
+              src={restaurant.images[activeImageIndex] || '/placeholder.svg?height=480&width=640'}
               alt={restaurant.name}
               fill
               className="object-cover"
@@ -99,12 +100,12 @@ export default function RestaurantDetailPage() {
               <button
                 key={index}
                 className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 ${
-                  activeImageIndex === index ? "border-primary" : "border-transparent"
+                  activeImageIndex === index ? 'border-blue-500' : 'border-transparent'
                 }`}
                 onClick={() => setActiveImageIndex(index)}
               >
                 <Image
-                  src={image || "/placeholder.svg"}
+                  src={image || '/placeholder.svg'}
                   alt={`${restaurant.name} ${index + 1}`}
                   fill
                   className="object-cover"
@@ -132,7 +133,7 @@ export default function RestaurantDetailPage() {
                 </div>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className="mt-2 flex flex-wrap gap-2">
               {restaurant.categories.map((category, index) => (
                 <Badge key={index} variant="secondary">
                   {category}
@@ -141,11 +142,11 @@ export default function RestaurantDetailPage() {
             </div>
           </div>
 
-          {restaurant.description && <p className="text-muted-foreground">{restaurant.description}</p>}
+          {restaurant.description && <p className="text-gray-600 dark:text-gray-300">{restaurant.description}</p>}
 
           <div className="space-y-2 text-sm">
             <div className="flex items-start">
-              <MapPin className="mr-2 h-5 w-5 text-muted-foreground" />
+              <MapPin className="mr-2 h-5 w-5 text-gray-500" />
               <div>
                 <p>{restaurant.address}</p>
                 <p>
@@ -154,23 +155,23 @@ export default function RestaurantDetailPage() {
               </div>
             </div>
             <div className="flex items-center">
-              <Clock className="mr-2 h-5 w-5 text-muted-foreground" />
+              <Clock className="mr-2 h-5 w-5 text-gray-500" />
               <p>
                 {restaurant.openingTime} - {restaurant.closingTime}
               </p>
             </div>
             <div className="flex items-center">
-              <Phone className="mr-2 h-5 w-5 text-muted-foreground" />
+              <Phone className="mr-2 h-5 w-5 text-gray-500" />
               <p>{restaurant.phoneNumber}</p>
             </div>
             {restaurant.website && (
               <div className="flex items-center">
-                <Globe className="mr-2 h-5 w-5 text-muted-foreground" />
+                <Globe className="mr-2 h-5 w-5 text-gray-500" />
                 <a
                   href={restaurant.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-blue-500 hover:underline"
                 >
                   {restaurant.website}
                 </a>
@@ -204,9 +205,11 @@ export default function RestaurantDetailPage() {
       <div className="mt-12">
         <h2 className="mb-4 text-2xl font-bold">Location</h2>
         <div className="h-[400px] w-full overflow-hidden rounded-lg border">
-          <RestaurantMap latitude={restaurant.latitude} longitude={restaurant.longitude} name={restaurant.name} />
+          <MapProvider>
+            <RestaurantMap latitude={restaurant.latitude} longitude={restaurant.longitude} name={restaurant.name} />
+          </MapProvider>
         </div>
       </div>
     </div>
-  )
+  );
 }
