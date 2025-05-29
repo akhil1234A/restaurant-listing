@@ -14,6 +14,8 @@ type RestaurantDataRaw = {
   offersDelivery?: string | boolean;
   offersDineIn?: string | boolean;
   offersPickup?: string | boolean;
+  latitude?: number;
+  longitude?: number;
 };
 
 /**
@@ -21,7 +23,7 @@ type RestaurantDataRaw = {
  * @param body Request body from FormData.
  * @param isPartial Whether this is a partial update.
  * @returns Validated restaurant data.
- * @throws CustomError if categories parsing fails.
+ * @throws CustomError if categories parsing fails or coordinates are invalid.
  */
 export function preprocessRestaurantData<T extends boolean>(
   body: any,
@@ -30,34 +32,29 @@ export function preprocessRestaurantData<T extends boolean>(
   let categories: string;
   try {
     if (!body.categories) {
-      // Handle missing or empty categories
       categories = JSON.stringify(isPartial ? [] : []);
     } else if (typeof body.categories === 'string') {
       try {
         const parsed = JSON.parse(body.categories);
         if (Array.isArray(parsed)) {
-          // Ensure parsed value is an array of strings
           if (parsed.every((item: any) => typeof item === 'string')) {
             categories = JSON.stringify(parsed);
           } else {
             throw new Error('Categories must be an array of strings');
           }
         } else {
-          // Treat non-array as a single category
           categories = JSON.stringify([body.categories]);
         }
       } catch (error) {
-        // If JSON parsing fails, treat as a single category
         categories = JSON.stringify([body.categories]);
       }
     } else if (Array.isArray(body.categories)) {
-      // Handle array input (unlikely from FormData, but for robustness)
       categories = JSON.stringify(body.categories);
     } else {
       throw new Error('Invalid categories format');
     }
   } catch (error) {
-    const err = error as Error; 
+    const err = error as Error;
     throw new CustomError(`Invalid categories format: ${err.message}`, 400);
   }
 
@@ -69,10 +66,18 @@ export function preprocessRestaurantData<T extends boolean>(
     phoneNumber: isPartial ? body.phoneNumber || undefined : body.phoneNumber,
     openingTime: isPartial ? body.openingTime || undefined : body.openingTime,
     closingTime: isPartial ? body.closingTime || undefined : body.closingTime,
-    offersDelivery: body.offersDelivery === 'true' || body.offersDelivery === true ? true : (isPartial ? undefined : false),
-    offersDineIn: body.offersDineIn === 'true' || body.offersDineIn === true ? true : (isPartial ? undefined : false),
-    offersPickup: body.offersPickup === 'true' || body.offersPickup === true ? true : (isPartial ? undefined : false),
+    offersDelivery:
+      body.offersDelivery === 'true' || body.offersDelivery === true ? true : isPartial ? undefined : false,
+    offersDineIn: body.offersDineIn === 'true' || body.offersDineIn === true ? true : isPartial ? undefined : false,
+    offersPickup: body.offersPickup === 'true' || body.offersPickup === true ? true : isPartial ? undefined : false,
+    latitude: body.latitude ? parseFloat(body.latitude) : isPartial ? undefined : 0,
+    longitude: body.longitude ? parseFloat(body.longitude) : isPartial ? undefined : 0,
   };
+
+  // Validate coordinates for non-partial updates
+  if (!isPartial && (isNaN(restaurantDataRaw.latitude!) || isNaN(restaurantDataRaw.longitude!))) {
+    throw new CustomError('Invalid latitude or longitude', 400);
+  }
 
   return validate(
     restaurantDataRaw,

@@ -87,6 +87,7 @@ export class RestaurantRepository extends BaseRepository<RestaurantDTO> implemen
     const total = await this.model.countDocuments(query);
     const restaurants = await this.model
       .find(query)
+      .sort({createdAt:-1})
       .skip((page - 1) * limit)
       .limit(limit)
       .lean()

@@ -13,7 +13,6 @@ export class RestaurantController {
 
   async listAllRestaurants(req: CustomRequest, res: Response, next: NextFunction) {
     try {
-     
       const { page, limit, searchTerm } = getPaginationParams(req);
       const { restaurants, total } = await this.restaurantService.fetchAllRestaurantsPublic(page, limit, searchTerm);
 
@@ -25,9 +24,7 @@ export class RestaurantController {
 
   async getRestaurantById(req: CustomRequest, res: Response, next: NextFunction) {
     try {
-   
       const { id: restaurantId } = req.params;
-    
 
       const restaurant = await this.restaurantService.getRestaurantById(restaurantId);
       res.status(STATUS_CODES.OK).json({ restaurant });
@@ -66,8 +63,16 @@ export class RestaurantController {
 
       const restaurantData = preprocessRestaurantData(req.body, true);
       const imageFiles = req.files as Express.Multer.File[] | undefined;
-      const imagesToKeep = req.body.imagesToKeep ? (Array.isArray(req.body.imagesToKeep) ? req.body.imagesToKeep : [req.body.imagesToKeep]) : [];
-      const imagesToRemove = req.body.imagesToRemove ? (Array.isArray(req.body.imagesToRemove) ? req.body.imagesToRemove : [req.body.imagesToRemove]) : [];
+      const imagesToKeep = req.body.imagesToKeep
+        ? Array.isArray(req.body.imagesToKeep)
+          ? req.body.imagesToKeep
+          : [req.body.imagesToKeep]
+        : [];
+      const imagesToRemove = req.body.imagesToRemove
+        ? Array.isArray(req.body.imagesToRemove)
+          ? req.body.imagesToRemove
+          : [req.body.imagesToRemove]
+        : [];
 
       const restaurant = await this.restaurantService.updateExistingRestaurant(
         restaurantId,

@@ -1,15 +1,12 @@
-import { injectable, inject } from "inversify";
-import { TYPES } from "../../di/types";
-import { IRestaurantRepository } from "../../domain/repositories/restaurant.repository";
-import { S3Service } from "../../infrastructure/s3/s3.service";
-import { CustomError } from "../../core/errors/custom-error";
-import {
-  RestaurantDTO,
-  RestaurantInputDto,
-} from "../../core/dtos/restaurant.dto";
-import { Client } from "@googlemaps/google-maps-services-js";
-import { z } from "zod";
-import { Logger } from "../../infrastructure/logging/logger";
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../di/types';
+import { IRestaurantRepository } from '../../domain/repositories/restaurant.repository';
+import { S3Service } from '../../infrastructure/s3/s3.service';
+import { CustomError } from '../../core/errors/custom-error';
+import { RestaurantDTO, RestaurantInputDto } from '../../core/dtos/restaurant.dto';
+import { Client } from '@googlemaps/google-maps-services-js';
+import { z } from 'zod';
+import { Logger } from '../../infrastructure/logging/logger';
 
 export interface IRestaurantService {
   convertAddressToCoordinates(
@@ -64,20 +61,20 @@ export class RestaurantService implements IRestaurantService {
   ): Promise<{ latitude: number; longitude: number }> {
     try {
       if (!address || !city || !pinCode) {
-        Logger.error("Invalid geocoding inputs", { address, city, pinCode });
-        throw new CustomError("Address, city, and pin code are required", 400);
+        Logger.error('Invalid geocoding inputs', { address, city, pinCode });
+        throw new CustomError('Address, city, and pin code are required', 400);
       }
 
       if (!process.env.GOOGLE_MAPS_API_KEY) {
-        Logger.error("Google Maps API key is missing");
+        Logger.error('Google Maps API key is missing');
         throw new CustomError(
-          "Server configuration error: Missing Google Maps API key",
+          'Server configuration error: Missing Google Maps API key',
           500
         );
       }
 
       const fullAddress = `${address}, ${city}, ${pinCode}`;
-      Logger.debug("Geocoding address", { fullAddress });
+      Logger.debug('Geocoding address', { fullAddress });
 
       const response = await this.googleMapsClient.geocode({
         params: {
@@ -86,40 +83,38 @@ export class RestaurantService implements IRestaurantService {
         },
       });
 
-      if (response.data.status !== "OK") {
-        Logger.error("Google Maps API error", {
+      if (response.data.status !== 'OK') {
+        Logger.error('Google Maps API error', {
           status: response.data.status,
           error_message: response.data.error_message,
           address: fullAddress,
         });
         throw new CustomError(
-          `Geocoding failed: ${response.data.status} - ${
-            response.data.error_message || "Unknown error"
-          }`,
+          `Geocoding failed: ${response.data.status} - ${response.data.error_message || 'Unknown error'}`,
           400
         );
       }
 
       const location = response.data.results[0]?.geometry.location;
       if (!location) {
-        Logger.error("No geocoding results found", {
+        Logger.error('No geocoding results found', {
           address: fullAddress,
           response: response.data,
         });
         throw new CustomError(
-          "Unable to geocode address: No results found",
+          'Unable to geocode address: No results found',
           400
         );
       }
 
-      Logger.info("Geocoding successful", {
+      Logger.info('Geocoding successful', {
         address: fullAddress,
         latitude: location.lat,
         longitude: location.lng,
       });
       return { latitude: location.lat, longitude: location.lng };
     } catch (error: any) {
-      Logger.error("Geocoding exception", {
+      Logger.error('Geocoding exception', {
         error: error.message,
         stack: error.stack,
         address: `${address}, ${city}, ${pinCode}`,
@@ -128,7 +123,7 @@ export class RestaurantService implements IRestaurantService {
         throw error;
       }
       throw new CustomError(
-        `Geocoding failed: ${error.message || "Unknown error"}`,
+        `Geocoding failed: ${error.message || 'Unknown error'}`,
         400
       );
     }
@@ -181,7 +176,7 @@ export class RestaurantService implements IRestaurantService {
   async getRestaurantById(id: string): Promise<RestaurantDTO> {
     const restaurant = await this.restaurantRepository.findById(id);
     if (!restaurant) {
-      throw new CustomError("Restaurant not found", 404);
+      throw new CustomError('Restaurant not found', 404);
     }
     const images = await Promise.all(
       restaurant.images.map((key) => this.s3Service.getSignedUrl(key))
@@ -194,16 +189,14 @@ export class RestaurantService implements IRestaurantService {
     data: z.infer<typeof RestaurantInputDto>,
     imageFiles: Express.Multer.File[]
   ): Promise<RestaurantDTO> {
-    // Generate latitude and longitude from address
-    const { latitude, longitude } = await this.convertAddressToCoordinates(
-      data.address,
-      data.city,
-      data.pinCode
-    );
+    // Validate provided coordinates
+    if (data.latitude < -90 || data.latitude > 90 || data.longitude < -180 || data.longitude > 180) {
+      throw new CustomError('Invalid latitude or longitude', 400);
+    }
 
     const imageKeys = await Promise.all(
       imageFiles.map(async (file, index) => {
-        const key = `restaurants/${userId}/${Date.now()}-${index}.jpg`;
+        const key = `restaurants/${userId}/${Date.now()}_${index}.jpg`;
         await this.s3Service.uploadImage(file, key);
         return key;
       })
@@ -212,8 +205,6 @@ export class RestaurantService implements IRestaurantService {
     const restaurantData: Partial<RestaurantDTO> = {
       ...data,
       userId,
-      latitude, // Add generated coordinates
-      longitude,
       images: imageKeys,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -236,34 +227,29 @@ export class RestaurantService implements IRestaurantService {
   ): Promise<RestaurantDTO> {
     const restaurant = await this.restaurantRepository.findById(id);
     if (!restaurant) {
-      throw new CustomError("Restaurant not found", 404);
+      throw new CustomError('Restaurant not found', 404);
     }
     if (restaurant.userId !== userId) {
-      throw new CustomError("Unauthorized", 403);
+      throw new CustomError('Unauthorized', 403);
     }
 
-    // Generate new coordinates if address-related fields are updated
-    let latitude = restaurant.latitude;
-    let longitude = restaurant.longitude;
-    if (data.address || data.city || data.pinCode) {
-      const address = data.address || restaurant.address;
-      const city = data.city || restaurant.city;
-      const pinCode = data.pinCode || restaurant.pinCode;
-      const coordinates = await this.convertAddressToCoordinates(
-        address,
-        city,
-        pinCode
-      );
-      latitude = coordinates.latitude;
-      longitude = coordinates.longitude;
+    // Validate coordinates if provided
+    if (data.latitude !== undefined && data.longitude !== undefined) {
+      if (data.latitude < -90 || data.latitude > 90 || data.longitude < -180 || data.longitude > 180) {
+        throw new CustomError('Invalid latitude or longitude', 400);
+      }
     }
 
-    // Extract keys from signed URLs in imagesToKeep
-   const keptImageKeys = await Promise.all(
-    imagesToKeep.map(async (signedUrl) => {
-      return await this.s3Service.extractKeyFromSignedUrl(signedUrl);
-    })
-  );
+    // Use existing coordinates if not provided
+    const latitude = data.latitude !== undefined ? data.latitude : restaurant.latitude;
+    const longitude = data.longitude !== undefined ? data.longitude : restaurant.longitude;
+
+    // Extract keys from signed URLs
+    const keptImageKeys = await Promise.all(
+      imagesToKeep.map(async (signedUrl) => {
+        return await this.s3Service.extractKeyFromSignedUrl(signedUrl);
+      })
+    );
 
     // Delete removed images
     await Promise.all(
@@ -273,7 +259,7 @@ export class RestaurantService implements IRestaurantService {
     // Upload new images
     const newImageKeys = await Promise.all(
       imageFiles.map(async (file, index) => {
-        const key = `restaurants/${userId}/${Date.now()}-${index}.jpg`;
+        const key = `restaurants/${userId}/${Date.now()}_${index}.jpg`;
         await this.s3Service.uploadImage(file, key);
         return key;
       })
@@ -284,18 +270,15 @@ export class RestaurantService implements IRestaurantService {
 
     const updateData: Partial<RestaurantDTO> = {
       ...data,
-      latitude, // Include updated or existing coordinates
+      latitude,
       longitude,
       images: updatedImages,
       updatedAt: new Date().toISOString(),
     };
 
-    const updatedRestaurant = await this.restaurantRepository.update(
-      id,
-      updateData
-    );
+    const updatedRestaurant = await this.restaurantRepository.update(id, updateData);
     if (!updatedRestaurant) {
-      throw new CustomError("Failed to update restaurant", 500);
+      throw new CustomError('Failed to update restaurant', 500);
     }
 
     const images = await Promise.all(
@@ -307,10 +290,10 @@ export class RestaurantService implements IRestaurantService {
   async deleteRestaurantById(id: string, userId: string): Promise<void> {
     const restaurant = await this.restaurantRepository.findById(id);
     if (!restaurant) {
-      throw new CustomError("Restaurant not found", 404);
+      throw new CustomError('Restaurant not found', 404);
     }
     if (restaurant.userId !== userId) {
-      throw new CustomError("Unauthorized", 403);
+      throw new CustomError('Unauthorized', 403);
     }
 
     await Promise.all(

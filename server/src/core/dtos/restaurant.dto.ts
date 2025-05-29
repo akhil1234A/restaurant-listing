@@ -13,7 +13,7 @@ export const RestaurantInputDto = z.object({
         }
         return parsed;
       } catch (error) {
-        const err = error as Error; 
+        const err = error as Error;
         throw new Error(`Invalid categories format: ${err.message}`);
       }
     })
@@ -29,6 +29,8 @@ export const RestaurantInputDto = z.object({
   offersDelivery: z.boolean().default(false),
   offersDineIn: z.boolean().default(false),
   offersPickup: z.boolean().default(false),
+  latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
+  longitude: z.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
 });
 
 export interface RestaurantDTO {
