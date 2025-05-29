@@ -1,9 +1,9 @@
 'use client';
 
-import { useJsApiLoader } from '@react-google-maps/api';
+import { useJsApiLoader, type Libraries } from '@react-google-maps/api';
 import { PropsWithChildren } from 'react';
 
-const libraries: ('places' | 'drawing' | 'geometry' | 'localContext' | 'visualization')[] = ['places'];
+const libraries: Libraries = ['places'];
 
 export default function MapProvider({ children }: PropsWithChildren) {
   const { isLoaded, loadError } = useJsApiLoader({
